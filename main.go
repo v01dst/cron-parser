@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -92,6 +93,16 @@ func main() {
 		fmt.Printf("  month:   %s\n", describe(c.month))
 		fmt.Printf("  weekday: %s\n", describe(c.weekday))
 
+	case "describe":
+		if len(args) < 2 {
+			usageExit("describe needs an expression")
+		}
+		c, err := Parse(args[1])
+		if err != nil {
+			fail(err)
+		}
+		fmt.Println(humanDescription(c))
+
 	case "version":
 		fmt.Println("cron-parser", version)
 
@@ -119,6 +130,69 @@ func describe(f field) string {
 func usageExit(msg string) {
 	fmt.Fprintln(os.Stderr, "error:", msg)
 	os.Exit(2)
+}
+
+func humanDescription(c *Cron) string {
+	m := describeField(c.minute)
+	h := describeField(c.hour)
+	dom := describeField(c.day)
+	mon := describeField(c.month)
+	dow := describeField(c.weekday)
+
+	var parts []string
+	parts = append(parts, fmt.Sprintf("At minute %s", m))
+	parts = append(parts, fmt.Sprintf("past hour %s", h))
+	if dom != "every day-of-month" && dow != "every day-of-week" {
+		parts = append(parts, fmt.Sprintf("on day-of-month %s or day-of-week %s", dom, dow))
+	} else if dom != "every day-of-month" {
+		parts = append(parts, fmt.Sprintf("on day-of-month %s", dom))
+	} else if dow != "every day-of-week" {
+		parts = append(parts, fmt.Sprintf("on %s", dayNamesRev(dow)))
+	} else {
+		parts = append(parts, "on every day")
+	}
+	if mon != "every month" {
+		parts = append(parts, fmt.Sprintf("in month %s", mon))
+	}
+	return strings.Join(parts, ", ")
+}
+
+func dayNamesRev(v string) string {
+	switch v {
+	case "0":
+		return "Sunday"
+	case "1":
+		return "Monday"
+	case "2":
+		return "Tuesday"
+	case "3":
+		return "Wednesday"
+	case "4":
+		return "Thursday"
+	case "5":
+		return "Friday"
+	case "6":
+		return "Saturday"
+	}
+	return "day " + v
+}
+
+func describeField(f field) string {
+	if len(f.values) == f.max-f.min+1 {
+		return "*"
+	}
+	out := ""
+	first := true
+	for v := f.min; v <= f.max; v++ {
+		if f.values[v] {
+			if !first {
+				out += ","
+			}
+			out += fmt.Sprintf("%d", v)
+			first = false
+		}
+	}
+	return out
 }
 
 func fail(err error) {
