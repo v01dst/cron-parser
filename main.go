@@ -93,6 +93,41 @@ func main() {
 		fmt.Printf("  month:   %s\n", describe(c.month))
 		fmt.Printf("  weekday: %s\n", describe(c.weekday))
 
+	case "validate":
+		if len(args) < 2 {
+			usageExit("validate needs a crontab file path")
+		}
+		data, err := os.ReadFile(args[1])
+		if err != nil {
+			fail(err)
+		}
+		bad := 0
+		lineNo := 0
+		for _, raw := range strings.Split(string(data), "\n") {
+			lineNo++
+			line := strings.TrimSpace(raw)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			fields := strings.Fields(line)
+			if len(fields) < 5 {
+				fmt.Printf("line %d: bad (need 5 fields, got %d)\n", lineNo, len(fields))
+				bad++
+				continue
+			}
+			if _, err := Parse(strings.Join(fields[:5], " ")); err != nil {
+				fmt.Printf("line %d: bad (%v)\n", lineNo, err)
+				bad++
+				continue
+			}
+			fmt.Printf("line %d: ok\n", lineNo)
+		}
+		if bad > 0 {
+			fmt.Fprintf(os.Stderr, "%d bad line(s)\n", bad)
+			os.Exit(1)
+		}
+		fmt.Println("crontab valid")
+
 	case "describe":
 		if len(args) < 2 {
 			usageExit("describe needs an expression")

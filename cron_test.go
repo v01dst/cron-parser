@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -127,5 +128,28 @@ func TestDayOrWeekdayRestriction(t *testing.T) {
 	// Sep 4 is a Friday; the run for Sep 4 00:00 already passed → next Friday Sep 11.
 	if next.Day() != 11 {
 		t.Fatalf("next = %v, want Sep 11 (OR semantics)", next)
+	}
+}
+
+func TestValidateCrontabLines(t *testing.T) {
+	good := []string{"*/5 * * * *", "0 9 * * mon-fri", "# comment", "", "@reboot x"}
+	for _, line := range good {
+		fields := strings.Fields(line)
+		if len(fields) < 5 {
+			continue
+		}
+		if _, err := Parse(strings.Join(fields[:5], " ")); err != nil {
+			t.Errorf("Parse(%q): %v", line, err)
+		}
+	}
+	bad := []string{"* * * *", "60 * * * *", "not a cron"}
+	for _, line := range bad {
+		fields := strings.Fields(line)
+		if len(fields) < 5 {
+			continue
+		}
+		if _, err := Parse(strings.Join(fields[:5], " ")); err == nil {
+			t.Errorf("Parse(%q) should fail", line)
+		}
 	}
 }
